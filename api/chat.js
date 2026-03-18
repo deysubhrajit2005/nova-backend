@@ -8,25 +8,25 @@ export default async function handler(req, res) {
     const { messages, system, maxTokens } = req.body;
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
-    const anthropicMsgs = (messages || []).map(m => {
+    const contents = (messages || []).map(m => {
       const content = [];
       if (m.images) m.images.forEach(img => content.push({ type: 'image', source: { type: 'base64', media_type: img.type, data: img.data } }));
       if (m.content) content.push({ type: 'text', text: m.content });
       if (!content.length) content.push({ type: 'text', text: ' ' });
       return { role: m.role === 'assistant' ? 'assistant' : 'user', content };
     });
-    const body = { model: 'claude-sonnet-4-20250514', max_tokens: maxTokens || 1500, messages: anthropicMsgs };
+    const body = { model: 'claude-sonnet-4-20250514', max_tokens: maxTokens || 1500, messages: contents };
     if (system) body.system = system;
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify(body)
     });
-    if (!r.ok) {
-      const err = await r.json().catch(() => ({}));
-      return res.status(r.status).json({ error: err?.error?.message || 'Claude API error' });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      return res.status(response.status).json({ error: err?.error?.message || 'Claude API error' });
     }
-    const data = await r.json();
+    const data = await response.json();
     const text = data.content?.map(b => b.text || '').join('') || '';
     return res.status(200).json({ text, searched: false });
   } catch (e) {
